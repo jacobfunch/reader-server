@@ -15,17 +15,13 @@ var ocr = new OCRExtractor();
 app.all("/", function(req, res)
 {
 	console.log("Some one hit us in server-wrapper.js");
-	console.log(req.body);
 
 	var cb = function(page, x, y) {
-		console.log(page);
-		console.log(x);
-		console.log(y);
-		res.send(page);
 		console.log("We ran cb.");
 		
 		ocr.extract(page, x, y, function(word) {
-			console.log("Word found: " + word)
+			res.send(word);
+			console.log("Word found: " + word);
 		});
 	};
 

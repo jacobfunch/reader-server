@@ -23,6 +23,9 @@ using namespace cv;
 using namespace std;
 using namespace boost::filesystem;
 
+const auto TRAINING_PATH = "./train/";
+const auto OCR_OUTPUT_PATH = "./ocr/";
+
 vector<Point2f> track_marker(Mat& image)
 {
     // Convert the image into an HSV image
@@ -34,7 +37,8 @@ vector<Point2f> track_marker(Mat& image)
     // PS ranges from 1-360 and 1-100
     // Multiply by 180/360 for the H value
     // Multiple by 255/100 for the S and V value
-    cv::inRange(imgHSV, cv::Scalar(45, 70, 70), cv::Scalar(100, 255, 255), imgThreshed);
+    cv::inRange(imgHSV, cv::Scalar(50, 80, 80), cv::Scalar(100, 255, 255), imgThreshed);
+    //imshow("imgThreshed", imgThreshed);
 
     vector<vector<Point> > contours;
     vector<Vec4i> hierarchy;
@@ -76,10 +80,10 @@ int tester() {
     FREAK extractor;
     BFMatcher matcher(NORM_HAMMING, false);
 
-    Mat image1 = imread("./matching_to_many_images/query.jpg", 0);
-    Mat image2 = imread("./matching_to_many_images/train/Page280.jpg", 0);
+    Mat image1 = imread("./glassImage_34.jpg", 0);
+    Mat image2 = imread("./train/Page280.jpg", 0);
 
-    Mat image3 = imread("./matching_to_many_images/query8.jpg");
+    Mat image3 = imread("./glassImage_34.jpg");
 
     vector<Point2f> marker_candidates = track_marker(image3);
     for (auto marker_candidate : marker_candidates) {
@@ -146,11 +150,6 @@ int tester() {
 
     return 0;
 }
-
-
-const auto TRAINING_PATH = "./matching_to_many_images/train/";
-const auto TRAINING_PATH_COMPRESSED = "./matching_to_many_images/train_compressed/";
-const auto OCR_OUTPUT_PATH = "./matching_to_many_images/ocr/";
 
 struct benchmark {
     benchmark() : start(chrono::high_resolution_clock::now()) { }
@@ -313,7 +312,9 @@ int main()
 
             cout << "Checking: " << move(get<0>(images))[i] << endl;
 
-            if ((abs(horizontal_top_angle - vertical_right_angle) > 90 - angleTolerance) &&
+            if (top_line_length > get<1>(images)[i].cols * 0.25 &&
+                bottom_line_length > get<1>(images)[i].cols * 0.25 &&
+                (abs(horizontal_top_angle - vertical_right_angle) > 90 - angleTolerance) &&
                 (abs(horizontal_bottom_angle - vertical_right_angle) > 90 - angleTolerance) &&
                 (abs(horizontal_bottom_angle - vertical_left_angle) > 90 - angleTolerance) &&
                 (abs(horizontal_top_angle - vertical_left_angle) > 90 - angleTolerance)) {
@@ -367,6 +368,8 @@ int main()
                 // marker_point[0] = Point(474, 470);
                 // perspectiveTransform( marker_point, output_point, H);
                 // cout << "Testing other method: " << output_point << endl;
+
+                break;
             }
         }
 

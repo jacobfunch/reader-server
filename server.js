@@ -40,9 +40,9 @@ app.all("/", function(req, res)
 
 			var reqSearcher = http.request(options, function(result) {
 			  result.on('data', function (chunk) {
-			  	var resultFilename = chunk.toString();
-			  	var pageNumber = resultFilename.replace(/[A-Za-z$-.\/]/g, "") - 14;
-			  	res.send("Page: "+ pageNumber);
+			  	var result = chunk.toString();
+			  	console.log("We are sending back: "+ result);
+			  	res.send(result);
 			  });
 			});
 
@@ -51,7 +51,7 @@ app.all("/", function(req, res)
    			  console.log( e.stack );
 			});
 
-			reqSearcher.write(JSON.stringify({"filename":"./matching_to_many_images/query4.jpg"}));
+			reqSearcher.write(JSON.stringify({"filename":"./glassImage_36.jpg"}));
 			reqSearcher.end();
 
 			nextId++;

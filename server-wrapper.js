@@ -19,9 +19,9 @@ app.all("/", function(req, res)
 	var cb = function(page, x, y) {
 		console.log("We ran cb.");
 		
-		ocr.extract(page, x, y, function(word) {
-			res.send(word);
-			console.log("Word found: " + word);
+		ocr.extract(page, x, y, function(json) {
+			res.contentType('application/json');
+			res.send(JSON.stringify(json));
 		});
 	};
 

@@ -22,7 +22,7 @@ app.all("/", function(req, res)
 
 	var filename = "glassImage_"+nextId+".jpg";
 
-	fs.writeFile(filename, buffer, function(err) {
+	fs.writeFile("./glass-pics/"+filename, buffer, function(err) {
 		if(err) {
 			console.log(err);
 		} else {
@@ -51,7 +51,7 @@ app.all("/", function(req, res)
    			  console.log( e.stack );
 			});
 
-			reqSearcher.write(JSON.stringify({"filename":"./glassImage_36.jpg"}));
+			reqSearcher.write(JSON.stringify({"filename":"./glass-pics/glassImage_36.jpg"}));
 			reqSearcher.end();
 
 			nextId++;

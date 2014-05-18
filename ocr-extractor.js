@@ -3,10 +3,19 @@ var express = require("express"),
 	fs = require("fs"),
 	http = require("http"),
 	querystring = require('querystring'),
-	jsdom = require("jsdom");
+	jsdom = require("jsdom"),
+	request = require("request"),
+	MsTranslator = require('mstranslator');
 
 app.use(express.json());
 app.use(express.urlencoded());
+
+var tasks = ['wikipedia', 'translator'];
+var urls = {
+		"Wikipedia": {
+			url: "http://en.wikipedia.org/w/api.php?action=query&prop=extracts&format=json&exintro=&titles=%%WORD%%",
+		}
+	};
 
 function OCRExtractor() {
 	console.log("OCR extractor created!");
@@ -33,9 +42,113 @@ OCRExtractor.prototype.extract = function(page, x, y, cb) {
 				var line_id = findLine($, glassY_px);
 				var word_id = findWordByLine($, line_id, glassX_px);
 
-				var word = $("#"+word_id).text();
-				cb(word);
+				var word = $("#"+word_id);
+
+				var paragraph = "";
+				var words_before = Array.prototype.reverse.call(word.prevAll().slice(0, 5));
+				words_before.each(function() {
+					paragraph += $(this).text() + " ";
+				});
+
+				var word_count_before = paragraph.length;
+				paragraph += word.text() + " ";
+
+				var words_after = word.nextAll().slice(0, 5);
+				words_after.each(function() {
+					paragraph += $(this).text() + " ";
+				});
+				
+				handleResult(word.text(), word_count_before, page, paragraph, function(result) {
+					console.log(result);
+					cb(result);
+				});
 			}
+		});
+	});
+}
+
+var handleResult = function(word, word_position, page, paragraph, callback) {
+	var return_array = {};
+	var count = 0;
+
+	return_array.word = word;
+	return_array.word_position = word_position;
+	return_array.paragraph = paragraph.trim();
+	return_array.page = page;
+
+	var completed_requests = function() {
+		count++;
+
+		if (count == tasks.length) {
+			console.log("We ran all");
+			callback(return_array);
+		}
+	};
+
+	for (var site in urls) {
+		var req = http.get(urls[site].url.replace("%%WORD%%", word), function(res) {
+			res.setEncoding('utf8');
+		});
+
+		req.on('response', function (response) {
+			var data = "";
+
+			response.on('data', function (chunk) {
+				data += chunk;
+			});
+
+			response.on('end', function(){
+				var result = data.toString();
+				var clean_result = result.replace(/<(?:.|\n)*?>/gm, "").replace(/(\\n)/gm, " ");
+
+				/**
+				 * Specific for Wikipedia
+				 */
+				if ( site == "Wikipedia" ) {
+					var json = JSON.parse(clean_result);
+
+					function traverse(json) {
+						for (i in json) {
+							if (typeof(json[i])=="object") {
+								if ( json[i].extract ) {
+									return_array.wikipedia = json[i].extract.substring(0, 120);
+									completed_requests();
+								}
+								
+								traverse(json[i]);
+							}
+						}
+					}
+
+					traverse(json);
+				}
+
+				/**
+				 * Specific for NOT USED
+				 */
+				else if ( site == "NOT_USED" ) {
+
+				}
+			});
+		});
+
+		req.on('error', function(e) {
+			console.log("Error: " + e.message); 
+			console.log( e.stack );
+		});
+	};
+
+	var client = new MsTranslator({client_id:"googleglass", client_secret: "KB8BPkPcfR5ft5Db13xwWz/E0kH9z8vHlp+aFUmRSb8="});
+	var params = { 
+		text: paragraph
+		, from: 'en'
+		, to: 'da'
+	};
+
+	client.initialize_token(function(keys){ 
+		client.translate(params, function(err, data) {
+			return_array.translation = data;
+			completed_requests("translation", data);
 		});
 	});
 }
@@ -91,5 +204,8 @@ var findWordByLine = function($, line_id, x_coordinate) {
 
 	return wordFound.attr('id');
 }
+
+// var test = new OCRExtractor();
+// test.extract(280, .20, .20, function() {});
 
 module.exports = OCRExtractor;

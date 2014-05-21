@@ -20,6 +20,7 @@ app.all("/", function(req, res)
 		console.log("We ran cb.");
 		
 		ocr.extract(page, x, y, function(json) {
+			console.log("Extract started with: " + page +" "+ x +" "+ y );
 			res.contentType('application/json');
 			res.send(JSON.stringify(json));
 		});

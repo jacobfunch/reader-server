@@ -2,19 +2,23 @@ var express = require("express"),
 	app = express(),
 	fs = require("fs"),
 	http = require("http"),
+	https = require("https"),
 	querystring = require('querystring'),
 	jsdom = require("jsdom"),
 	request = require("request"),
+	googleapis = require('googleapis'),
 	MsTranslator = require('mstranslator');
 
 app.use(express.json());
 app.use(express.urlencoded());
 
+var api_key = "AIzaSyBoTGWsuL5ouFkm7Q3Ln4D4HD6Ab87RFv0"; // https://console.developers.google.com/project/apps~podiadd-app-static/apiui/credential?authuser=0
+
 var tasks = ['wikipedia', 'translator'];
 var urls = {
-		"Wikipedia": {
-			url: "http://en.wikipedia.org/w/api.php?action=query&prop=extracts&format=json&exintro=&titles=%%WORD%%",
-		}
+		google: "https://www.googleapis.com/customsearch/v1?q=%%WORD%%&cx=016852346807244731097%3Aukvjpqvo1aw&num=2&key="+api_key,
+		wikipedia: "http://en.wikipedia.org/w/api.php?action=query&prop=extracts&format=json&exintro=&titles=%%WORD%%",
+		wikipedia_alternative: "http://en.wiktionary.org/w/api.php?action=query&prop=extracts&format=json&titles=%%WORD%%",
 	};
 
 function OCRExtractor() {
@@ -24,9 +28,11 @@ function OCRExtractor() {
 }
 
 OCRExtractor.prototype.extract = function(page, x, y, cb) {
+	console.log("Opening extract.");
 	fs.readFile('./ocr/Page'+page+'.jpg.html', 'utf8', function (err, data) {
 		if (err) throw err;
 
+		console.log("OCR file read.");
 		jsdom.env({
 			html: data,
 			scripts: ["assets/jquery-1.11.0.min.js"],
@@ -79,64 +85,26 @@ var handleResult = function(word, word_position, page, paragraph, callback) {
 	var completed_requests = function() {
 		count++;
 
+		console.log(count);
+
 		if (count == tasks.length) {
 			console.log("We ran all");
 			callback(return_array);
 		}
 	};
 
-	for (var site in urls) {
-		var req = http.get(urls[site].url.replace("%%WORD%%", word), function(res) {
-			res.setEncoding('utf8');
-		});
+	var google_result = HTTPGet(urls.google.replace("%%WORD%%", word), function(data) {
+		console.log("Google word: " + word);
+		var result = data.toString();
+		var json = JSON.parse(result);
 
-		req.on('response', function (response) {
-			var data = "";
+		var snippet = json.items[0].snippet;
+		var title = json.items[0].title;
 
-			response.on('data', function (chunk) {
-				data += chunk;
-			});
-
-			response.on('end', function(){
-				var result = data.toString();
-				var clean_result = result.replace(/<(?:.|\n)*?>/gm, "").replace(/(\\n)/gm, " ");
-
-				/**
-				 * Specific for Wikipedia
-				 */
-				if ( site == "Wikipedia" ) {
-					var json = JSON.parse(clean_result);
-
-					function traverse(json) {
-						for (i in json) {
-							if (typeof(json[i])=="object") {
-								if ( json[i].extract ) {
-									return_array.wikipedia = json[i].extract.substring(0, 120);
-									completed_requests();
-								}
-								
-								traverse(json[i]);
-							}
-						}
-					}
-
-					traverse(json);
-				}
-
-				/**
-				 * Specific for NOT USED
-				 */
-				else if ( site == "NOT_USED" ) {
-
-				}
-			});
-		});
-
-		req.on('error', function(e) {
-			console.log("Error: " + e.message); 
-			console.log( e.stack );
-		});
-	};
+		return_array.wikipedia_title = title;
+		return_array.wikipedia_snippet = snippet.substring(0, 120);
+		completed_requests();
+	});
 
 	var client = new MsTranslator({client_id:"googleglass", client_secret: "KB8BPkPcfR5ft5Db13xwWz/E0kH9z8vHlp+aFUmRSb8="});
 	var params = { 
@@ -147,9 +115,33 @@ var handleResult = function(word, word_position, page, paragraph, callback) {
 
 	client.initialize_token(function(keys){ 
 		client.translate(params, function(err, data) {
+			console.log("Translation done.");
 			return_array.translation = data;
-			completed_requests("translation", data);
+			completed_requests();
 		});
+	});
+}
+
+var HTTPGet = function(url, callback) {
+	var req = https.get(url, function(res) {
+		res.setEncoding('utf8');
+	});
+
+	req.on('response', function (response) {
+		var data = "";
+
+		response.on('data', function (chunk) {
+			data += chunk;
+		});
+
+		response.on('end', function(){
+			callback(data);
+		});
+	});
+
+	req.on('error', function(e) {
+		console.log("Error: " + e.message); 
+		console.log( e.stack );
 	});
 }
 
@@ -206,6 +198,6 @@ var findWordByLine = function($, line_id, x_coordinate) {
 }
 
 // var test = new OCRExtractor();
-// test.extract(280, .20, .20, function() {});
+// test.extract(280, .25, .20, function() {});
 
 module.exports = OCRExtractor;

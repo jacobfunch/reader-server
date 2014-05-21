@@ -80,14 +80,32 @@ int tester() {
     FREAK extractor;
     BFMatcher matcher(NORM_HAMMING, false);
 
-    Mat image1 = imread("./glassImage_34.jpg", 0);
+    Mat image1 = imread("./glass-pics/glassImage_111.jpg", 0);
     Mat image2 = imread("./train/Page280.jpg", 0);
 
-    Mat image3 = imread("./glassImage_34.jpg");
+    Mat image3 = imread("./glass-pics/glassImage_111.jpg");
 
     vector<Point2f> marker_candidates = track_marker(image3);
     for (auto marker_candidate : marker_candidates) {
         cv::circle(image3, marker_candidate, 5, CV_RGB(0,255,0), 2);
+    }
+
+    // Preprocessing query image
+    equalizeHist(image1, image1);
+    image1 = image1 + Scalar(22, 22, 22);
+
+    double remove_pixels_percent = 0.15;
+    for (int i=0; i<image1.rows; i++) {
+        for (int j=0; j<image1.cols; j++) {
+            int pixel = image1.at<uchar>(i,j);
+
+            // We try to remove false matches:
+            // Paint pixels that are far from white or black, and paint pixels near the frame.
+            if ( (pixel > 80 && pixel < 120) ||
+                 j < image1.cols * remove_pixels_percent ||
+                 j > image1.cols - image1.cols * remove_pixels_percent )
+                image1.at<uchar>(i,j) = 0;
+        }
     }
 
     imshow("Marker", image3);
@@ -137,6 +155,25 @@ int tester() {
     vector<Point2f> scene_corners(4);
 
     perspectiveTransform( obj_corners, scene_corners, H);
+
+    int top_line_length = sqrt(pow(scene_corners[0].x - scene_corners[1].x, 2) + pow(scene_corners[0].y - scene_corners[1].y, 2));
+    int bottom_line_length = sqrt(pow(scene_corners[2].x - scene_corners[3].x, 2) + pow(scene_corners[2].y - scene_corners[3].y, 2));
+
+    double angleTolerance = 25;
+
+    double horizontal_top_angle = (atan((double)(scene_corners[1].y - scene_corners[0].y) / (scene_corners[1].x - scene_corners[0].x)) * 180.) / 3.14;
+    double vertical_right_angle = (atan((double)(scene_corners[2].y - scene_corners[1].y) / (scene_corners[2].x - scene_corners[1].x)) * 180.) / 3.14;
+    double horizontal_bottom_angle = (atan((double)(scene_corners[3].y - scene_corners[2].y) / (scene_corners[3].x - scene_corners[2].x)) * 180.) / 3.14;
+    double vertical_left_angle = (atan((double)(scene_corners[0].y - scene_corners[3].y) / (scene_corners[0].x - scene_corners[3].x)) * 180.) / 3.14;
+
+    if (top_line_length > image1.cols * 0.25 &&
+        bottom_line_length > image1.cols * 0.25 &&
+        (abs(horizontal_top_angle - vertical_right_angle) > 90 - angleTolerance) &&
+        (abs(horizontal_bottom_angle - vertical_right_angle) > 90 - angleTolerance) &&
+        (abs(horizontal_bottom_angle - vertical_left_angle) > 90 - angleTolerance) &&
+        (abs(horizontal_top_angle - vertical_left_angle) > 90 - angleTolerance)) {
+        cout << " > We found a match" << endl;
+    }
 
     // Draw lines between the corners (the mapped object in the scene)
     line( imgMatch, scene_corners[0], scene_corners[1], Scalar(0, 255, 0), 4 );
@@ -245,7 +282,7 @@ int main()
 
                 // We try to remove false matches:
                 // Paint pixels that are far from white or black, and paint pixels near the frame.
-                if ( (pixel > 50 && pixel < 200) ||
+                if ( (pixel > 80 && pixel < 120) ||
                      j < image.cols * remove_pixels_percent ||
                      j > image.cols - image.cols * remove_pixels_percent )
                     image.at<uchar>(i,j) = 0;
@@ -312,8 +349,7 @@ int main()
 
             cout << "Checking: " << move(get<0>(images))[i] << endl;
 
-            if (top_line_length > get<1>(images)[i].cols * 0.25 &&
-                bottom_line_length > get<1>(images)[i].cols * 0.25 &&
+            if (
                 (abs(horizontal_top_angle - vertical_right_angle) > 90 - angleTolerance) &&
                 (abs(horizontal_bottom_angle - vertical_right_angle) > 90 - angleTolerance) &&
                 (abs(horizontal_bottom_angle - vertical_left_angle) > 90 - angleTolerance) &&

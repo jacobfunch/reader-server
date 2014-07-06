@@ -23,8 +23,8 @@ using namespace cv;
 using namespace std;
 using namespace boost::filesystem;
 
-const auto TRAINING_PATH = "./train/";
-const auto OCR_OUTPUT_PATH = "./ocr/";
+const auto TRAINING_PATH = "./train/SIFT/";
+const auto OCR_OUTPUT_PATH = "./ocr/SIFT/";
 
 vector<Point2f> track_marker(Mat& image)
 {
@@ -37,7 +37,7 @@ vector<Point2f> track_marker(Mat& image)
     // PS ranges from 1-360 and 1-100
     // Multiply by 180/360 for the H value
     // Multiple by 255/100 for the S and V value
-    cv::inRange(imgHSV, cv::Scalar(50, 80, 80), cv::Scalar(100, 255, 255), imgThreshed);
+    cv::inRange(imgHSV, cv::Scalar(45, 60, 60), cv::Scalar(65, 255, 255), imgThreshed);
     //imshow("imgThreshed", imgThreshed);
 
     vector<vector<Point> > contours;
@@ -79,11 +79,11 @@ int tester() {
     auto detector = FeatureDetector::create("SURF");
     FREAK extractor;
     BFMatcher matcher(NORM_HAMMING, false);
+    
+    Mat image1 = imread("./glass-pics/glassImage_0.jpg", 0);
+    Mat image2 = imread("./train/SIFT/Page1.jpg", 0);
 
-    Mat image1 = imread("./glass-pics/glassImage_111.jpg", 0);
-    Mat image2 = imread("./train/Page280.jpg", 0);
-
-    Mat image3 = imread("./glass-pics/glassImage_111.jpg");
+    Mat image3 = imread("./glass-pics/glassImage_0.jpg");
 
     vector<Point2f> marker_candidates = track_marker(image3);
     for (auto marker_candidate : marker_candidates) {
@@ -107,7 +107,7 @@ int tester() {
                 image1.at<uchar>(i,j) = 0;
         }
     }
-
+    
     imshow("Marker", image3);
 
     Mat descriptorsA, descriptorsB;
@@ -282,7 +282,8 @@ int main()
 
                 // We try to remove false matches:
                 // Paint pixels that are far from white or black, and paint pixels near the frame.
-                if ( (pixel > 80 && pixel < 120) ||
+                if ( (pixel > 30 && pixel < 200) ||
+                //if ( (pixel > 80 && pixel < 120) ||
                      j < image.cols * remove_pixels_percent ||
                      j > image.cols - image.cols * remove_pixels_percent )
                     image.at<uchar>(i,j) = 0;
@@ -362,8 +363,8 @@ int main()
                 vector<Point2f> marker_candidates = track_marker(image_original);
                 vector<Point2f> marker_output(marker_candidates.size());
                 if ( marker_candidates.size() == 0 ) {
-                    cout << "Marker not found, so we won't do more." << endl;
-                    return;
+                    cout << " >> Marker not found." << endl;
+                    break;
                 }
 
                 cout << marker_candidates << endl;

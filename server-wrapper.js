@@ -18,12 +18,19 @@ app.all("/", function(req, res)
 
 	var cb = function(page, x, y) {
 		console.log("We ran cb.");
-		
-		ocr.extract(page, x, y, function(json) {
-			console.log("Extract started with: " + page +" "+ x +" "+ y );
+
+		if ( !page ) {
+			console.log("Error: send empty result to Glass.");
 			res.contentType('application/json');
-			res.send(JSON.stringify(json));
-		});
+			res.send(JSON.stringify({"error": 100}));
+		} else {
+			console.log("But why");
+			ocr.extract(page, x, y, function(json) {
+				console.log("Extract started with: " + page +" "+ x +" "+ y );
+				res.contentType('application/json');
+				res.send(JSON.stringify(json));
+			});
+		}
 	};
 
 	s.match_file(req.body.filename, cb);

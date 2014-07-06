@@ -42,8 +42,12 @@ Searcher.prototype._input_error = function(line) {
 
 Searcher.prototype._wait_process = function(line) {
   var match = /.*?>>.*?File.\s.*?([0-9]+).*?.\s*?XY.\s([-+]?[0-9]*\.?[0-9]+).\s([-+]?[0-9]*\.?[0-9]+)/.exec(line); // Match stuff like: ">> File: test120.jpg XY: 123.00, 123.00"
-  if ( !match )
-    return;
+  if ( !match ) {
+    console.log("Why twice?!");
+    this.state.current.cb(null, null, null);
+    this.state.current = undefined;
+    this._consume_next();
+  }
 
   var page = match[1];
   var x = match[2];

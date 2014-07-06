@@ -95,6 +95,7 @@ var handleResult = function(word, word_position, page, paragraph, callback) {
 
 	var google_result = HTTPGet(urls.google.replace("%%WORD%%", word), function(data) {
 		console.log("Google word: " + word);
+		console.log(data);
 		var result = data.toString();
 		var json = JSON.parse(result);
 

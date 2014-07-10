@@ -16,7 +16,7 @@ app.all("/", function(req, res)
 {
 	console.log("Some one hit us in server-wrapper.js");
 
-	var cb = function(page, x, y) {
+	var cb = function(page, left, center, right) {
 		console.log("We ran cb.");
 
 		if ( !page ) {
@@ -24,10 +24,9 @@ app.all("/", function(req, res)
 			res.contentType('application/json');
 			res.send(JSON.stringify({"error": 100}));
 		} else {
-			console.log("But why");
-			ocr.extract(page, x, y, function(json) {
-				console.log("Extract started with: " + page +" "+ x +" "+ y );
+			ocr.extract(page, left, center, right, function(json) {
 				res.contentType('application/json');
+				json["error"] = "0";
 				res.send(JSON.stringify(json));
 			});
 		}

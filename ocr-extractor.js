@@ -27,9 +27,9 @@ function OCRExtractor() {
 	var self = this;
 }
 
-OCRExtractor.prototype.extract = function(page, x, y, cb) {
+OCRExtractor.prototype.extract = function(page, left, center, right, cb) {
 	console.log("Opening extract.");
-	fs.readFile('./ocr/Page'+page+'.jpg.html', 'utf8', function (err, data) {
+	fs.readFile('./ocr/Jarl/Page'+page+'.jpg.html', 'utf8', function (err, data) {
 		if (err) throw err;
 
 		console.log("OCR file read.");
@@ -41,30 +41,46 @@ OCRExtractor.prototype.extract = function(page, x, y, cb) {
 
 				var pageWidth = $("div.ocr_page").attr('title').split(";")[1].split(" ")[4];
 				var pageHeight = $("div.ocr_page").attr('title').split(";")[1].split(" ")[5];
+
+				console.log(left);
+				console.log(center);
+				console.log(right);
+
+				center = JSON.parse(center);
 				
-				var glassX_px = pageWidth * x;
-				var glassY_px = pageHeight * y;
+				var glassLeft_px = pageWidth * left;
+				var glassRight_px = pageWidth * right;
+				var glassCenterX_px = pageWidth * center[0];
+				var glassCenterY_px = pageHeight * center[1];
 
-				var line_id = findLine($, glassY_px);
-				var word_id = findWordByLine($, line_id, glassX_px);
+				var line_id = findLine($, glassCenterY_px);
+				var word_ids = findWordByLine($, line_id, glassLeft_px, glassRight_px);
 
-				var word = $("#"+word_id);
+				console.log(line_id);
+				console.log(glassCenterY_px);
 
 				var paragraph = "";
-				var words_before = Array.prototype.reverse.call(word.prevAll().slice(0, 5));
+				var words_before = Array.prototype.reverse.call($(word_ids[0]).prevAll().slice(0, 5));
 				words_before.each(function() {
 					paragraph += $(this).text() + " ";
 				});
 
 				var word_count_before = paragraph.length;
-				paragraph += word.text() + " ";
+				var words = "";
+				for (var i = 0; i < word_ids.length; i++) {
+					var current = word_ids[i];
+					paragraph += $(current).text() + " ";
+					words += $(current).text() + " ";
+				};
 
-				var words_after = word.nextAll().slice(0, 5);
+				words = $.trim(words);
+
+				var words_after = $(word_ids[word_ids.length]).nextAll().slice(0, 5);
 				words_after.each(function() {
 					paragraph += $(this).text() + " ";
 				});
 				
-				handleResult(word.text(), word_count_before, page, paragraph, function(result) {
+				handleResult(words, word_count_before, page, paragraph, function(result) {
 					console.log(result);
 					cb(result);
 				});
@@ -155,6 +171,7 @@ var findLine = function($, y_coordinate) {
 		var lineY_start = parseFloat($(this).attr('title').split(" ")[2]);
 		var lineY_end = parseFloat($(this).attr('title').split(" ")[4]);
 		var lineCenter = (lineY_start + lineY_end)/2;
+		var lineHeight = lineY_start - lineY_end;
 
 		// Check if coordinate is inside bounding box.
 		if ( y_coordinate > lineY_start && y_coordinate < lineY_end ) {
@@ -172,33 +189,40 @@ var findLine = function($, y_coordinate) {
 	return lineFound.attr('id');
 }
 
-var findWordByLine = function($, line_id, x_coordinate) {
+var findWordByLine = function($, line_id, start, end) {
 	var foundAccurate = false;
 	var foundClosest = 0;
 	var wordFound = null;
 
+	var list_of_ids = [];
+	var wrongly_found = "";
+
 	$("#"+line_id).find('span').each(function() {
 		var wordX_start = parseFloat($(this).attr('title').split(" ")[1]);
 		var wordX_end = parseFloat($(this).attr('title').split(" ")[3]);
+		var word_width = wordX_end - wordX_start;
 		var wordCenter = (wordX_start + wordX_end)/2;
 
 		// Check if coordinate is inside bounding box.
-		if ( x_coordinate > wordX_start && x_coordinate < wordX_end ) {
-			wordFound = $(this);
+		if ( start < wordX_start + (word_width / 2) && end > wordX_start + (word_width / 2) ) {
+			list_of_ids.push($(this));
 			foundAccurate = true;
 		} else if ( !foundAccurate ) {
-			tmpClosest = Math.abs(x_coordinate - wordCenter);
+			tmpClosest = Math.abs(start - wordCenter);
 			if ( tmpClosest < foundClosest || foundClosest == 0 ) {
 				foundClosest = tmpClosest;
-				wordFound = $(this);
+				wrongly_found = $(this);
 			}
 		}
 	});
 
-	return wordFound.attr('id');
+	if ( list_of_ids.length == 0 )
+		return wrongly_found;
+	else
+		return list_of_ids;
 }
 
 // var test = new OCRExtractor();
-// test.extract(280, .25, .20, function() {});
+// test.extract(1, 0.561568, "[0.656998, 0.603208]", 0.764005, function() {});
 
 module.exports = OCRExtractor;

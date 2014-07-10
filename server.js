@@ -53,6 +53,7 @@ app.all("/", function(req, res)
 			});
 
 			reqSearcher.write(JSON.stringify({"filename":path+filename}));
+			//reqSearcher.write(JSON.stringify({"filename":path+"Saved/glassImage_0.jpg"}));
 			reqSearcher.end();
 
 			nextId++;

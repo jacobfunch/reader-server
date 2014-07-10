@@ -1,0 +1,1 @@
+curl -k -i -H 'Accept: application/json' -H 'Content-type: application/json' -X POST -d '{"image":"1"}' 'http://296bedca.ngrok.com'

@@ -41,19 +41,31 @@ Searcher.prototype._input_error = function(line) {
 };
 
 Searcher.prototype._wait_process = function(line) {
-  var match = /.*?>>.*?File.\s.*?([0-9]+).*?.\s*?XY.\s([-+]?[0-9]*\.?[0-9]+).\s([-+]?[0-9]*\.?[0-9]+)/.exec(line); // Match stuff like: ">> File: test120.jpg XY: 123.00, 123.00"
+  var data = /.*?>>\s*(.*)/.exec(line); // Match >> to check only those lines.
+  console.log(data);
+  if (!data) return;
+  var result = data[1];
+
+  console.log(result);
+
+  var match = /File.\s.*?([0-9]+).*?.\s*?LCR.\s([-+]?[0-9]*\.?[0-9]+).\s(\[.*?\]).\s([-+]?[0-9]*\.?[0-9]+)/.exec(result);
+
+  console.log(match);
+
+  //var match = /.*?>>.*?File.\s.*?([0-9]+).*?.\s*?XY.\s([-+]?[0-9]*\.?[0-9]+).\s([-+]?[0-9]*\.?[0-9]+)/.exec(line); // Match stuff like: ">> File: test120.jpg XY: 123.00, 123.00"
   if ( !match ) {
-    console.log("Why twice?!");
-    this.state.current.cb(null, null, null);
+    this.state.current.cb(null, null, null, null);
     this.state.current = undefined;
     this._consume_next();
+    return;
   }
 
   var page = match[1];
-  var x = match[2];
-  var y = match[3];
+  var left = match[2];
+  var center = match[3];
+  var right = match[4];
   
-  this.state.current.cb(page, x, y);
+  this.state.current.cb(page, left, center, right);
   this.state.current = undefined;
   //this.state.readLine = this._input_error;
   this._consume_next();

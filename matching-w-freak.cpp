@@ -23,8 +23,8 @@ using namespace cv;
 using namespace std;
 using namespace boost::filesystem;
 
-const auto TRAINING_PATH = "./train/SIFT/";
-const auto OCR_OUTPUT_PATH = "./ocr/SIFT/";
+const auto TRAINING_PATH = "./train/Jarl/";
+const auto OCR_OUTPUT_PATH = "./ocr/Jarl/";
 
 vector<Point2f> track_marker(Mat& image)
 {
@@ -37,8 +37,8 @@ vector<Point2f> track_marker(Mat& image)
     // PS ranges from 1-360 and 1-100
     // Multiply by 180/360 for the H value
     // Multiple by 255/100 for the S and V value
-    cv::inRange(imgHSV, cv::Scalar(45, 60, 60), cv::Scalar(65, 255, 255), imgThreshed);
-    //imshow("imgThreshed", imgThreshed);
+    cv::inRange(imgHSV, cv::Scalar(35, 50, 50), cv::Scalar(65, 255, 255), imgThreshed);
+    imshow("imgThreshed", imgThreshed);
 
     vector<vector<Point> > contours;
     vector<Vec4i> hierarchy;
@@ -50,27 +50,39 @@ vector<Point2f> track_marker(Mat& image)
 
     vector<Point2f> candidates;
     auto largest_area = 0;
+    vector<Point> final_contour;
     for (auto contour : contours) {
         double a = contourArea(contour, false);
         if (a > largest_area) {
             largest_area = a;
 
-            Point leftmost = contour[0];
-            Point rightmost = contour[0];
-            for (auto p : contour) {
-                if (p.x < leftmost.x) {
-                    leftmost = p;
-                }
-                if (p.x > rightmost.x) {
-                    rightmost = p;
-                }
-            }
+            final_contour = contour;
 
-            if (abs(leftmost.x - rightmost.x) > 10) {
-                candidates.push_back(Point2f(leftmost.x - 3, leftmost.y + 5)); // Addition to corregate for pencil shape
-            }
+            // Now using marker highlighting and not point with the tip selection. Better UX.
+            // Point leftmost = contour[0];
+            // Point rightmost = contour[0];
+            // for (auto p : contour) {
+            //     if (p.x < leftmost.x) {
+            //         leftmost = p;
+            //     }
+            //     if (p.x > rightmost.x) {
+            //         rightmost = p;
+            //     }
+            // }
+
+            //if (abs(leftmost.x - rightmost.x) > 10) {
+                //candidates.push_back(Point2f(leftmost.x - 3, leftmost.y + 5)); // Addition to corregate for pencil shape
+            //}
         }
     }
+
+    // Get mass center of contour
+    auto m = cv::moments( final_contour, false );
+    auto boundRect = boundingRect(final_contour);
+
+    candidates.push_back(Point2f(boundRect.x, boundRect.y + (boundRect.height/2)));
+    candidates.push_back(Point2f(m.m10/m.m00, m.m01/m.m00));
+    candidates.push_back(Point2f(boundRect.x + boundRect.width, boundRect.y + (boundRect.height/2)));
 
     return candidates;
 };
@@ -80,10 +92,10 @@ int tester() {
     FREAK extractor;
     BFMatcher matcher(NORM_HAMMING, false);
     
-    Mat image1 = imread("./glass-pics/glassImage_0.jpg", 0);
-    Mat image2 = imread("./train/SIFT/Page1.jpg", 0);
+    Mat image1 = imread("./glass-pics/Saved/glassImage_0.jpg", 0);
+    Mat image2 = imread("./train/Jarl/Page1.jpg", 0);
 
-    Mat image3 = imread("./glass-pics/glassImage_0.jpg");
+    Mat image3 = imread("./glass-pics/Saved/glassImage_0.jpg");
 
     vector<Point2f> marker_candidates = track_marker(image3);
     for (auto marker_candidate : marker_candidates) {
@@ -175,6 +187,8 @@ int tester() {
         cout << " > We found a match" << endl;
     }
 
+    cout << image1.rows << endl;
+
     // Draw lines between the corners (the mapped object in the scene)
     line( imgMatch, scene_corners[0], scene_corners[1], Scalar(0, 255, 0), 4 );
     line( imgMatch, scene_corners[1], scene_corners[2], Scalar(0, 255, 0), 4 );
@@ -219,7 +233,7 @@ pair<vector<vector<KeyPoint>>, vector<Mat>> createMatcher(pair<vector<path>, vec
         }
 
         Mat image_compressed;
-        resize(image, image_compressed, Size(), 0.8, 0.8);
+        resize(image, image_compressed, Size(), 1, 1);
 
         vector<KeyPoint> keypoints;
         Mat descriptors;
@@ -245,7 +259,7 @@ pair<vector<vector<KeyPoint>>, vector<Mat>> createMatcher(pair<vector<path>, vec
 
 int main()
 {
-    //int Tester = tester();
+    int Tester = tester();
 
     auto detector = FeatureDetector::create("SURF");
     FREAK extractor;
@@ -266,6 +280,8 @@ int main()
     auto trained_descriptors = move(get<1>(data));
 
     bench_train(to_string(move(get<0>(images)).size()) + " images trained");
+
+    auto write_output_to_node = false;
 
     auto matchImage = [&](Mat image_original) {
         Mat image;
@@ -364,6 +380,7 @@ int main()
                 vector<Point2f> marker_output(marker_candidates.size());
                 if ( marker_candidates.size() == 0 ) {
                     cout << " >> Marker not found." << endl;
+                    write_output_to_node = true;
                     break;
                 }
 
@@ -371,17 +388,10 @@ int main()
 
                 Point2f correct_marker;
                 perspectiveTransform( marker_candidates, marker_output, H );
-                for (auto marker_point : marker_output) {
 
-                    // Lets remove potential markers off the paper.
-                    if ( marker_point.x > 0 && marker_point.x < get<1>(images)[i].cols &&
-                         marker_point.y > 0 && marker_point.y < get<1>(images)[i].rows) {
-                        correct_marker = marker_point;
-                    }
-                }
-
-                double new_x = correct_marker.x / get<1>(images)[i].cols;
-                double new_y = correct_marker.y / get<1>(images)[i].rows;
+                auto left = marker_output[0].x / get<1>(images)[i].cols;
+                auto center = Point2f(marker_output[1].x / get<1>(images)[i].cols, (marker_output[1].y) / get<1>(images)[i].rows);
+                auto right = marker_output[2].x / get<1>(images)[i].cols;
 
                 // Mat srcMat(3, 1, CV_64F);
                 // srcMat.at<double>(0,0) = 474;
@@ -396,7 +406,10 @@ int main()
                 auto path = move(get<0>(images))[i].string();
                 auto filename = path.substr(path.find_last_of('/')+1);
 
-                cout << " >> File: " << filename <<  " XY: " << new_x << ", " << new_y << endl;
+                // LCR = left center right
+                cout << " >> File: " << filename <<  " LCR: " << left << ", " << center << ", " << right << endl;
+
+                write_output_to_node = true;
 
                 // This is another method for calculating the X,Y coordinate.
                 // vector<Point2f> marker_point(1);
@@ -410,7 +423,10 @@ int main()
             }
         }
 
-        bench_match("All matches done");
+        if ( !write_output_to_node )
+            cout << " >> No match found. " << endl;
+
+        bench_match("All matches done.");
     };
 
     cout << "--- INPUT ---" << endl;

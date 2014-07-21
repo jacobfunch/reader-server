@@ -29,7 +29,7 @@ function OCRExtractor() {
 
 OCRExtractor.prototype.extract = function(page, left, center, right, cb) {
 	console.log("Opening extract.");
-	fs.readFile('./ocr/Jarl/Page'+page+'.jpg.html', 'utf8', function (err, data) {
+	fs.readFile('./ocr/Andreas/Page'+page+'.jpg.html', 'utf8', function (err, data) {
 		if (err) throw err;
 
 		console.log("OCR file read.");
@@ -75,7 +75,7 @@ OCRExtractor.prototype.extract = function(page, left, center, right, cb) {
 
 				words = $.trim(words);
 
-				var words_after = $(word_ids[word_ids.length]).nextAll().slice(0, 5);
+				var words_after = $(word_ids[word_ids.length -1]).nextAll().slice(0, 5);
 				words_after.each(function() {
 					paragraph += $(this).text() + " ";
 				});
@@ -92,6 +92,7 @@ OCRExtractor.prototype.extract = function(page, left, center, right, cb) {
 var handleResult = function(word, word_position, page, paragraph, callback) {
 	var return_array = {};
 	var count = 0;
+	var first_time_error = true;
 
 	return_array.word = word;
 	return_array.word_position = word_position;
@@ -109,19 +110,28 @@ var handleResult = function(word, word_position, page, paragraph, callback) {
 		}
 	};
 
-	var google_result = HTTPGet(urls.google.replace("%%WORD%%", word), function(data) {
-		console.log("Google word: " + word);
-		console.log(data);
-		var result = data.toString();
-		var json = JSON.parse(result);
+	var google_result = function(word_to_replace) {
+		HTTPGet(urls.google.replace("%%WORD%%", word_to_replace), function(data) {
+			console.log("Google word: " + word_to_replace);
+			console.log(data);
+			var result = data.toString();
+			var json = JSON.parse(result);
 
-		var snippet = json.items[0].snippet;
-		var title = json.items[0].title;
+			if ( json.spelling && first_time_error ) {
+				google_result(json.spelling.correctedQuery);
+				first_time_error = false;
+				return;
+			}
 
-		return_array.wikipedia_title = title;
-		return_array.wikipedia_snippet = snippet.substring(0, 120);
-		completed_requests();
-	});
+			var snippet = json.items[0].snippet;
+			var title = json.items[0].title;
+
+			return_array.wikipedia_title = title;
+			return_array.wikipedia_snippet = snippet.substring(0, 120);
+			completed_requests();
+		});
+	};
+	google_result(word);
 
 	var client = new MsTranslator({client_id:"googleglass", client_secret: "KB8BPkPcfR5ft5Db13xwWz/E0kH9z8vHlp+aFUmRSb8="});
 	var params = { 
@@ -223,6 +233,6 @@ var findWordByLine = function($, line_id, start, end) {
 }
 
 // var test = new OCRExtractor();
-// test.extract(1, 0.561568, "[0.656998, 0.603208]", 0.764005, function() {});
+// test.extract(1, 0.561005, "[0.650628, 0.605454]", 0.751675, function() {});
 
 module.exports = OCRExtractor;

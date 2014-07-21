@@ -1,0 +1,94 @@
+// Training pseudo
+FUNCTION DetectAndCompute(image:Mat, keypoints:vector<KeyPoint>&, descriptors:Mat&):
+    Detect image and assign result to keypoints variable;
+    Compute image with keypoints and assign result to descriptors variable;
+END FUNCTION;
+
+
+
+// Filtering
+
+FOREACH match:
+    IF match[0].distance / match[1].distance < 0.8:
+        Push match to vector;
+    END IF;
+END FOREACH
+
+vector<vector<DMatch>> knmatches;
+for (int i = 0; i < matches.size(); i++)
+{
+  if ( (matches[i].size() == 1) ||
+       (abs(matches[i][0].distance / matches[i][1].distance) < 0.8) ) {
+      knmatches.push_back(matches[i]);
+  }
+}
+
+
+
+// Track marker
+FUNCTION TrackMarker(image:Mat):
+  Convert image into an HSV format;
+  Make new image;
+  Draw all colors in specific range on new image; // cv::inRange();
+  Find contours on new image;
+
+  FOREACH contour:
+    IF contour area > 30:
+      Get contour area center;
+      Check if y-coordinate is lower than last iteration;
+      Update variable to hold lowest contour;
+    END IF;
+  END FOREACH;
+
+  RETURN leftside, center, rightside;
+END FUNCTION;
+
+
+
+// Match pseudo
+FUNCTION MatchImage(image:Mat):
+    Make image greyscale;
+    Equalize image histogram;
+    Lighten image by 20% to improve dark features;
+
+    // Paint pixels that are far from white or black.
+    FOR EACH px in image:
+        IF px not close to white AND px not close to black:
+            Paint px black;
+        END IF;
+    END EACH;
+
+    Detect image to get keypoints;
+    Compute image to get descriptors;
+
+    FOR EACH trained images:
+        Match image against trained image;
+        Remove false matches;
+        Find homography for match;
+        Draw homography on image;
+        Calculate distance between top corners of homography;
+        Calculate distance between bottom corners of homography;
+
+        Set angleTolerance = 25 degrees;
+
+        // Calculate angle between all sides.
+        IF angleLeftSide - angleTop > 90 - angleTolerance AND
+           angleRightSide - angleTop > 90 - angleTolerance ...
+
+            // We have a match;
+
+            Get image filename and subtract pagenumber from string;
+
+            FindMarker();
+            
+            Get inverse homography matrix;
+            Make perspective transformation of marker coordinates by homography matrix;
+            
+            Get most left of marker bounding box;
+            Get most right of marker bounding box;
+            Get center of marker bounding box;
+
+            Return pagenumber, most left, center, most right;
+        END IF;
+    END FOR EACH;
+END FUNCTION;

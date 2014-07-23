@@ -8,7 +8,7 @@ var express = require("express"),
 app.use(express.json());
 app.use(express.urlencoded());
 
-var nextId = 99;
+var nextId = 150;
 
 /*
 *	Root
@@ -52,8 +52,8 @@ app.all("/", function(req, res)
    			  console.log( e.stack );
 			});
 
-			//reqSearcher.write(JSON.stringify({"filename":path+filename}));
-			reqSearcher.write(JSON.stringify({"filename":path+"glassImage_128.jpg"}));
+			reqSearcher.write(JSON.stringify({"filename":path+filename}));
+			//reqSearcher.write(JSON.stringify({"filename":path+"glassImage_128.jpg"}));
 			reqSearcher.end();
 
 			nextId++;

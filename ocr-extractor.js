@@ -29,7 +29,7 @@ function OCRExtractor() {
 
 OCRExtractor.prototype.extract = function(page, left, center, right, cb) {
 	console.log("Opening extract.");
-	fs.readFile('./ocr/Andreas/Page'+page+'.jpg.html', 'utf8', function (err, data) {
+	fs.readFile('./ocr/Kenny/Page'+page+'.jpg.html', 'utf8', function (err, data) {
 		if (err) throw err;
 
 		console.log("OCR file read.");

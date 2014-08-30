@@ -111,6 +111,7 @@ var handleResult = function(word, word_position, page, paragraph, callback) {
 	};
 
 	var google_result = function(word_to_replace) {
+		word_to_replace = "IDEO";
 		HTTPGet(urls.google.replace("%%WORD%%", word_to_replace), function(data) {
 			console.log("Google word: " + word_to_replace);
 			console.log(data);

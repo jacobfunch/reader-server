@@ -26,6 +26,19 @@ using namespace boost::filesystem;
 const auto TRAINING_PATH = "./train/Kenny/";
 const auto OCR_OUTPUT_PATH = "./ocr/Kenny/";
 
+struct benchmark {
+	benchmark() : start(chrono::high_resolution_clock::now()) { }
+
+	void operator()(std::string text) {
+		auto end = chrono::high_resolution_clock::now();
+		auto diff = chrono::duration_cast<chrono::milliseconds>(end - start);
+		cout << text << " in " << diff.count() << " ms" << endl;
+	}
+
+private:
+	chrono::time_point<chrono::high_resolution_clock> start;
+};
+
 vector<Point2f> track_marker(Mat& image)
 {
 	// Convert the image into an HSV image
@@ -102,38 +115,47 @@ vector<Point2f> track_marker(Mat& image)
 };
 
 int tester() {
-	auto detector = FeatureDetector::create("SIFT");
-	auto extractor = DescriptorExtractor::create("SURF");
-	//FREAK extractor;
-	BFMatcher matcher(NORM_HAMMING, false);
+	/**
+		ORB / ORB => 3ms OK result
+		SURF / ORB => 1026ms bad result
+		SURF / FREAK => 1492ms good result
+		SURF / SURF => 629ms OK result
+		SIFT / SIFT => 675ms OK result
+
+	 */
+
+	auto detector = FeatureDetector::create("ORB");
+	auto extractor = DescriptorExtractor::create("ORB");
+	//auto extractor = new FREAK(); //FREAK extractor;
 	
-	Mat image1 = imread("./glass-pics/glassImage_153.jpg", 0);
-	Mat image2 = imread("./train/Katrine/Page1.jpg", 0);
+	Mat image1 = imread("./glass-pics/glassImage_9.jpg", 0);
+	Mat image2 = imread("./train/Johan/Page3.jpg", 0);
 
-	Mat image3 = imread("./glass-pics/glassImage_153.jpg");
+	Mat image3 = imread("./glass-pics/glassImage_9-h.jpg");
+	copyMakeBorder( image1, image1, 0, 400, 100, 0, BORDER_CONSTANT, Scalar(0,0,0) );
 
-	vector<Point2f> marker_candidates = track_marker(image3);
-	for (auto marker_candidate : marker_candidates) {
-		cv::circle(image3, marker_candidate, 5, CV_RGB(0,255,0), 2);
-	}
+	// vector<Point2f> marker_candidates = track_marker(image3);
+	// for (auto marker_candidate : marker_candidates) {
+	// 	cv::circle(image3, marker_candidate, 5, CV_RGB(0,255,0), 2);
+	// }
 
 	// Preprocessing query image
-	equalizeHist(image1, image1);
-	image1 = image1 + Scalar(22, 22, 22);
+	// equalizeHist(image1, image1);
+	// image1 = image1 + Scalar(22, 22, 22);
 
-	double remove_pixels_percent = 0.15;
-	for (int i=0; i<image1.rows; i++) {
-		for (int j=0; j<image1.cols; j++) {
-			int pixel = image1.at<uchar>(i,j);
+	// double remove_pixels_percent = 0.15;
+	// for (int i=0; i<image1.rows; i++) {
+	// 	for (int j=0; j<image1.cols; j++) {
+	// 		int pixel = image1.at<uchar>(i,j);
 
-			// We try to remove false matches:
-			// Paint pixels that are far from white or black, and paint pixels near the frame.
-			if ( (pixel > 80 && pixel < 120) ||
-				 j < image1.cols * remove_pixels_percent ||
-				 j > image1.cols - image1.cols * remove_pixels_percent )
-				image1.at<uchar>(i,j) = 0;
-		}
-	}
+	// 		// We try to remove false matches:
+	// 		// Paint pixels that are far from white or black, and paint pixels near the frame.
+	// 		if ( (pixel > 80 && pixel < 120) ||
+	// 			 j < image1.cols * remove_pixels_percent ||
+	// 			 j > image1.cols - image1.cols * remove_pixels_percent )
+	// 			image1.at<uchar>(i,j) = 0;
+	// 	}
+	// }
 	
 	imshow("Marker", image3);
 
@@ -148,87 +170,86 @@ int tester() {
 
 	vector<vector<cv::DMatch> > matches;
 	vector<vector<cv::DMatch> > nmatches;
-	matcher.knnMatch(descriptorsA, descriptorsB, nmatches, 2);
 
-	// vector<vector<DMatch>> knmatches;
-	// for(int i=0; i<nmatches.size(); i++)
-	// {
-	// 	if((nmatches[i].size()==1)||(abs(nmatches[i][0].distance/nmatches[i][1].distance)<0.8))
-	// 	{
-	// 		knmatches.push_back(nmatches[i]);
-	// 	}
-	// }
-	// matches=knmatches;
+	benchmark bench_test_match;
+	benchmark bench_test_total;
 
-	// Mat imgMatch;
-	// drawMatches(image1, keypointsA, image2, keypointsB, matches, imgMatch);
+	if ( descriptorsA.type() == CV_8U ) {
+		BFMatcher matcher(NORM_HAMMING);
+		matcher.knnMatch(descriptorsA, descriptorsB, nmatches, 2);
+	} else {
+		BFMatcher matcher(NORM_L2);
+		matcher.knnMatch(descriptorsA, descriptorsB, nmatches, 2);
+	}
 
-	// copyMakeBorder( imgMatch, imgMatch, 0, 600, 0, 0, BORDER_CONSTANT, Scalar(255,255,255) );
+	bench_test_match("Test match");
 
-	// vector<Point2f> obj;
-	// vector<Point2f> scene;
+	vector<vector<DMatch>> knmatches;
+	for(int i=0; i<nmatches.size(); i++)
+	{
+		if((nmatches[i].size()==1)||(abs(nmatches[i][0].distance/nmatches[i][1].distance)<0.8))
+		{
+			knmatches.push_back(nmatches[i]);
+		}
+	}
+	matches=knmatches;
 
-	// for( int j = 0; j < matches.size(); j++ )
-	// {
-	// 	obj.push_back( keypointsB[ matches[j][0].trainIdx ].pt );
-	// 	scene.push_back( keypointsA[ matches[j][0].queryIdx ].pt );
-	// }
+	Mat imgMatch;
+	//drawMatches(image1, keypointsA, image2, keypointsB, matches, imgMatch);
 
-	// Mat H = findHomography( obj, scene, CV_RANSAC );
+	//copyMakeBorder( image3, image3, 100, 400, 0, 0, BORDER_CONSTANT, Scalar(0,0,0) );
 
-	// vector<Point2f> obj_corners(4);
-	// obj_corners[0] = cvPoint(0,0); obj_corners[1] = cvPoint( image2.cols, 0 );
-	// obj_corners[2] = cvPoint( image2.cols, image2.rows ); obj_corners[3] = cvPoint( 0, image2.rows );
-	// vector<Point2f> scene_corners(4);
+	vector<Point2f> obj;
+	vector<Point2f> scene;
 
-	// perspectiveTransform( obj_corners, scene_corners, H);
+	for( int j = 0; j < matches.size(); j++ )
+	{
+		obj.push_back( keypointsB[ matches[j][0].trainIdx ].pt );
+		scene.push_back( keypointsA[ matches[j][0].queryIdx ].pt );
+	}
 
-	// int top_line_length = sqrt(pow(scene_corners[0].x - scene_corners[1].x, 2) + pow(scene_corners[0].y - scene_corners[1].y, 2));
-	// int bottom_line_length = sqrt(pow(scene_corners[2].x - scene_corners[3].x, 2) + pow(scene_corners[2].y - scene_corners[3].y, 2));
+	Mat H = findHomography( obj, scene, CV_RANSAC );
 
-	// double angleTolerance = 25;
+	vector<Point2f> obj_corners(4);
+	obj_corners[0] = cvPoint(0,0); obj_corners[1] = cvPoint( image2.cols, 0 );
+	obj_corners[2] = cvPoint( image2.cols, image2.rows ); obj_corners[3] = cvPoint( 0, image2.rows );
+	vector<Point2f> scene_corners(4);
 
-	// double horizontal_top_angle = (atan((double)(scene_corners[1].y - scene_corners[0].y) / (scene_corners[1].x - scene_corners[0].x)) * 180.) / 3.14;
-	// double vertical_right_angle = (atan((double)(scene_corners[2].y - scene_corners[1].y) / (scene_corners[2].x - scene_corners[1].x)) * 180.) / 3.14;
-	// double horizontal_bottom_angle = (atan((double)(scene_corners[3].y - scene_corners[2].y) / (scene_corners[3].x - scene_corners[2].x)) * 180.) / 3.14;
-	// double vertical_left_angle = (atan((double)(scene_corners[0].y - scene_corners[3].y) / (scene_corners[0].x - scene_corners[3].x)) * 180.) / 3.14;
+	perspectiveTransform( obj_corners, scene_corners, H);
 
-	// if (top_line_length > image1.cols * 0.25 &&
-	// 	bottom_line_length > image1.cols * 0.25 &&
-	// 	(abs(horizontal_top_angle - vertical_right_angle) > 90 - angleTolerance) &&
-	// 	(abs(horizontal_bottom_angle - vertical_right_angle) > 90 - angleTolerance) &&
-	// 	(abs(horizontal_bottom_angle - vertical_left_angle) > 90 - angleTolerance) &&
-	// 	(abs(horizontal_top_angle - vertical_left_angle) > 90 - angleTolerance)) {
-	// 	cout << " > We found a match" << endl;
-	// }
+	int top_line_length = sqrt(pow(scene_corners[0].x - scene_corners[1].x, 2) + pow(scene_corners[0].y - scene_corners[1].y, 2));
+	int bottom_line_length = sqrt(pow(scene_corners[2].x - scene_corners[3].x, 2) + pow(scene_corners[2].y - scene_corners[3].y, 2));
 
-	// cout << image1.rows << endl;
+	double angleTolerance = 25;
 
-	// // Draw lines between the corners (the mapped object in the scene)
-	// line( imgMatch, scene_corners[0], scene_corners[1], Scalar(0, 255, 0), 4 );
-	// line( imgMatch, scene_corners[1], scene_corners[2], Scalar(0, 255, 0), 4 );
-	// line( imgMatch, scene_corners[2], scene_corners[3], Scalar(0, 255, 0), 4 );
-	// line( imgMatch, scene_corners[3], scene_corners[0], Scalar(0, 255, 0), 4 );
+	double horizontal_top_angle = (atan((double)(scene_corners[1].y - scene_corners[0].y) / (scene_corners[1].x - scene_corners[0].x)) * 180.) / 3.14;
+	double vertical_right_angle = (atan((double)(scene_corners[2].y - scene_corners[1].y) / (scene_corners[2].x - scene_corners[1].x)) * 180.) / 3.14;
+	double horizontal_bottom_angle = (atan((double)(scene_corners[3].y - scene_corners[2].y) / (scene_corners[3].x - scene_corners[2].x)) * 180.) / 3.14;
+	double vertical_left_angle = (atan((double)(scene_corners[0].y - scene_corners[3].y) / (scene_corners[0].x - scene_corners[3].x)) * 180.) / 3.14;
 
-	// resize(imgMatch, imgMatch, Size(), 0.5, 0.5);
-	// imshow("matches", imgMatch);
-	// waitKey(0);
+	if (top_line_length > image1.cols * 0.25 &&
+		bottom_line_length > image1.cols * 0.25 &&
+		(abs(horizontal_top_angle - vertical_right_angle) > 90 - angleTolerance) &&
+		(abs(horizontal_bottom_angle - vertical_right_angle) > 90 - angleTolerance) &&
+		(abs(horizontal_bottom_angle - vertical_left_angle) > 90 - angleTolerance) &&
+		(abs(horizontal_top_angle - vertical_left_angle) > 90 - angleTolerance)) {
+		cout << " > We found a match" << endl;
+	}
+
+	bench_test_total("Test total");
+
+	// Draw lines between the corners (the mapped object in the scene)
+	line( image3, scene_corners[0], scene_corners[1], Scalar(0, 255, 0), 4 );
+	line( image3, scene_corners[1], scene_corners[2], Scalar(0, 255, 0), 4 );
+	line( image3, scene_corners[2], scene_corners[3], Scalar(0, 255, 0), 4 );
+	line( image3, scene_corners[3], scene_corners[0], Scalar(0, 255, 0), 4 );
+
+	resize(image3, image3, Size(), 0.5, 0.5);
+	imshow("matches", image3);
+	waitKey(0);
 
 	return 0;
 }
-
-struct benchmark {
-	benchmark() : start(chrono::high_resolution_clock::now()) { }
-
-	void operator()(std::string text) {
-		auto end = chrono::high_resolution_clock::now();
-		auto diff = chrono::duration_cast<chrono::milliseconds>(end - start);
-		cout << text << " in " << diff.count() << " ms" << endl;
-	}
-
-private:
-	chrono::time_point<chrono::high_resolution_clock> start;
-};
 
 template<typename T>
 pair<vector<vector<KeyPoint>>, vector<Mat>> createMatcher(pair<vector<path>, vector<Mat>>& images, T detectAndCompute) {
@@ -276,7 +297,7 @@ int main()
 {
 	cv::initModule_nonfree();
 
-	int Tester = tester();
+	//int Tester = tester();
 
 	auto detector = FeatureDetector::create("SURF");
 	FREAK extractor;

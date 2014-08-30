@@ -16,7 +16,7 @@ void readme();
 int main()
 {
 
-  Mat img_1 = imread( "image106.jpg", CV_LOAD_IMAGE_GRAYSCALE );
+  Mat img_1 = imread( "nykredit.jpg", CV_LOAD_IMAGE_GRAYSCALE );
   Mat img_2 = imread( "20140311_093714_641.jpg", CV_LOAD_IMAGE_GRAYSCALE );
 
   if( !img_1.data || !img_2.data )
@@ -25,7 +25,7 @@ int main()
   //-- Step 1: Detect the keypoints using SURF Detector
   int minHessian = 400;
 
-  SiftFeatureDetector detector;
+  SurfFeatureDetector detector(600);
 
   std::vector<KeyPoint> keypoints_1, keypoints_2;
 
@@ -37,7 +37,7 @@ int main()
   imshow( "Test", img_test );
 
   //-- Step 2: Calculate descriptors (feature vectors)
-  SiftDescriptorExtractor extractor;
+  SurfDescriptorExtractor extractor;
 
   Mat descriptors_1, descriptors_2;
 

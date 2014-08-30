@@ -129,7 +129,7 @@ int tester() {
 	//auto extractor = new FREAK(); //FREAK extractor;
 	
 	Mat image1 = imread("./glass-pics/glassImage_9.jpg", 0);
-	Mat image2 = imread("./train/Johan/Page3.jpg", 0);
+	Mat image2 = imread("./train/User/Page3.jpg", 0);
 
 	Mat image3 = imread("./glass-pics/glassImage_9-h.jpg");
 	copyMakeBorder( image1, image1, 0, 400, 100, 0, BORDER_CONSTANT, Scalar(0,0,0) );

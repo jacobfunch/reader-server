@@ -23,8 +23,8 @@ using namespace cv;
 using namespace std;
 using namespace boost::filesystem;
 
-const auto TRAINING_PATH = "./train/Kenny/";
-const auto OCR_OUTPUT_PATH = "./ocr/Kenny/";
+const auto TRAINING_PATH = "./train/User/";
+const auto OCR_OUTPUT_PATH = "./ocr/User/";
 
 struct benchmark {
 	benchmark() : start(chrono::high_resolution_clock::now()) { }

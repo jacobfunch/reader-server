@@ -12,7 +12,7 @@ var express = require("express"),
 app.use(express.json());
 app.use(express.urlencoded());
 
-var api_key = "AIzaSyBoTGWsuL5ouFkm7Q3Ln4D4HD6Ab87RFv0"; // https://console.developers.google.com/project/apps~podiadd-app-static/apiui/credential?authuser=0
+var api_key = "SECRET"; // https://console.developers.google.com/project/apps~podiadd-app-static/apiui/credential?authuser=0
 
 var tasks = ['wikipedia', 'translator'];
 var urls = {
@@ -29,7 +29,7 @@ function OCRExtractor() {
 
 OCRExtractor.prototype.extract = function(page, left, center, right, cb) {
 	console.log("Opening extract.");
-	fs.readFile('./ocr/Kenny/Page'+page+'.jpg.html', 'utf8', function (err, data) {
+	fs.readFile('./ocr/User/Page'+page+'.jpg.html', 'utf8', function (err, data) {
 		if (err) throw err;
 
 		console.log("OCR file read.");
@@ -111,7 +111,6 @@ var handleResult = function(word, word_position, page, paragraph, callback) {
 	};
 
 	var google_result = function(word_to_replace) {
-		word_to_replace = "IDEO";
 		HTTPGet(urls.google.replace("%%WORD%%", word_to_replace), function(data) {
 			console.log("Google word: " + word_to_replace);
 			console.log(data);
@@ -134,7 +133,7 @@ var handleResult = function(word, word_position, page, paragraph, callback) {
 	};
 	google_result(word);
 
-	var client = new MsTranslator({client_id:"googleglass", client_secret: "KB8BPkPcfR5ft5Db13xwWz/E0kH9z8vHlp+aFUmRSb8="});
+	var client = new MsTranslator({client_id:"googleglass", client_secret: "SECRET"});
 	var params = { 
 		text: paragraph
 		, from: 'en'
